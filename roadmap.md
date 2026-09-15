@@ -1,8 +1,8 @@
 # Roadmap PATOVER
 
-- [ ] Crear sistema visual y navegación base
-- [ ] Implementar acceso y recuperación
-- [ ] Implementar organizaciones
-- [ ] Implementar eventos y configuración
-- [ ] Implementar reportes y filtros
+- [x] Crear sistema visual y navegación base
+- [x] Implementar acceso y recuperación
+- [x] Implementar organizaciones
+- [x] Implementar eventos y configuración
+- [x] Implementar reportes y filtros
 - [ ] Verificar visualmente escritorio y móvil
