@@ -71,6 +71,7 @@ function Login({ recover, setRecover, onLogin }: { recover: boolean; setRecover:
             <label>Correo institucional<Input name="email" type="email" placeholder="nombre@userena.cl" onChange={() => setError(false)} /></label>
             {!recover && <label>Contraseña<Input name="password" type="password" placeholder="••••••••" onChange={() => setError(false)} /></label>}
             {error && <p className="form-error">Completa ambos campos para iniciar sesión.</p>}
+            {!recover && <p className="privacy"><ShieldCheck /> Demo: usa cualquier correo y contraseña, por ejemplo demo@userena.cl / demo1234</p>}
             <Button className="w-full" size="lg" type="submit">{recover ? "Enviar instrucciones" : "Iniciar sesión"}</Button>
           </>}
           <Button type="button" variant="link" onClick={() => { setRecover(!recover); setSent(false); }}>{recover ? "Volver al inicio de sesión" : "¿Olvidaste tu contraseña?"}</Button>
