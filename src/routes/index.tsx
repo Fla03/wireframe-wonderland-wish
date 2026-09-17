@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  BarChart3, Building2, CalendarDays, ChevronLeft, ChevronRight, CircleHelp,
-  Download, Eye, FileBarChart, LayoutDashboard, LogOut, Menu, MoreHorizontal,
-  Pencil, Plus, Search, Settings2, ShieldCheck, Users, X,
+  AlertTriangle, Archive, BarChart3, Building2, CalendarDays, CheckCircle2,
+  ChevronLeft, ChevronRight, CircleHelp, Copy, Download, Eye, EyeOff,
+  FileBarChart, LayoutDashboard, LogOut, Menu, MoreHorizontal, Pencil, Plus,
+  Search, Settings2, ShieldCheck, Trash2, UserPlus, Users, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
     { title: "PATOVER | Gestión de eventos ULS" },
-    { name: "description", content: "Mockup de gestión universitaria para organizaciones, eventos y reportes." },
+    { name: "description", content: "Mockup funcional de gestión universitaria para organizaciones, eventos y reportes." },
     { property: "og:title", content: "PATOVER | Gestión de eventos ULS" },
     { property: "og:description", content: "Plataforma de gestión de eventos y actividades universitarias." },
     { property: "og:type", content: "website" },
@@ -21,16 +22,18 @@ export const Route = createFileRoute("/")({
 });
 
 type View = "dashboard" | "organizaciones" | "eventos" | "reportes";
-type EventStatus = "Publicado" | "Configurado" | "Borrador" | "Finalizado";
+type EventStatus = "Publicado" | "Configurado" | "Borrador" | "Finalizado" | "Archivado";
+type Organization = { name: string; initials: string; contact: string; email: string; status: "Activa" | "Inactiva"; events: number };
+type PatoverEvent = { name: string; org: string; date: string; place: string; registered: number; capacity: number; status: EventStatus };
 
-const organizations = [
+const initialOrganizations: Organization[] = [
   { name: "Facultad de Ingeniería", initials: "FI", contact: "Camila Soto", email: "eventos.fi@userena.cl", status: "Activa", events: 8 },
   { name: "Facultad de Humanidades", initials: "FH", contact: "Diego Rojas", email: "humanidades@userena.cl", status: "Activa", events: 5 },
   { name: "Dirección de Vinculación", initials: "DV", contact: "María Paz Leiva", email: "vinculacion@userena.cl", status: "Activa", events: 12 },
   { name: "Centro de Estudiantes", initials: "CE", contact: "Tomás Vega", email: "centro.estudiantes@userena.cl", status: "Inactiva", events: 2 },
 ];
 
-const events: { name: string; org: string; date: string; place: string; registered: number; capacity: number; status: EventStatus }[] = [
+const initialEvents: PatoverEvent[] = [
   { name: "Feria de Innovación ULS 2026", org: "Facultad de Ingeniería", date: "24 sep 2026", place: "Campus Ignacio Domeyko", registered: 428, capacity: 500, status: "Publicado" },
   { name: "Encuentro de Humanidades", org: "Facultad de Humanidades", date: "02 oct 2026", place: "Salón Pentágono", registered: 186, capacity: 240, status: "Configurado" },
   { name: "Seminario Vinculación Regional", org: "Dirección de Vinculación", date: "18 oct 2026", place: "Aula Magna", registered: 94, capacity: 300, status: "Borrador" },
@@ -39,166 +42,129 @@ const events: { name: string; org: string; date: string; place: string; register
 
 function Index() {
   const [signedIn, setSignedIn] = useState(false);
-  const [recover, setRecover] = useState(false);
-  if (!signedIn) return <Login recover={recover} setRecover={setRecover} onLogin={() => setSignedIn(true)} />;
+  if (!signedIn) return <Login onLogin={() => setSignedIn(true)} />;
   return <Workspace onLogout={() => setSignedIn(false)} />;
 }
 
-function Login({ recover, setRecover, onLogin }: { recover: boolean; setRecover: (value: boolean) => void; onLogin: () => void }) {
-  const [error, setError] = useState(false);
+function Login({ onLogin }: { onLogin: () => void }) {
+  const [recover, setRecover] = useState(false);
   const [sent, setSent] = useState(false);
-  const submit = (event: React.FormEvent) => {
+  const [error, setError] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState("");
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget as HTMLFormElement);
+    const form = new FormData(event.currentTarget);
+    if (!form.get("email") || (!recover && !form.get("password"))) { setError(true); return; }
     if (recover) { setSent(true); return; }
-    if (!form.get("email") || !form.get("password")) { setError(true); return; }
     onLogin();
   };
-  return (
-    <main className="login-shell">
-      <section className="login-brand">
-        <BrandMark large />
-        <div><p className="brand-kicker">Universidad de La Serena</p><h1>Gestión universitaria, en un solo lugar.</h1><p>Organiza eventos, coordina equipos y toma decisiones con información confiable.</p></div>
-        <p className="login-foot">Plataforma institucional · Acceso seguro</p>
-      </section>
-      <section className="login-panel">
-        <form className="auth-form" onSubmit={submit}>
-          <div className="auth-icon"><ShieldCheck /></div>
-          <p className="eyebrow">PATOVER</p>
-          <h2>{recover ? "Recuperar acceso" : "Bienvenido de vuelta"}</h2>
-          <p className="supporting">{recover ? "Ingresa tu correo institucional y te enviaremos las instrucciones." : "Ingresa tus credenciales institucionales para continuar."}</p>
-          {sent ? <div className="success-panel"><ShieldCheck /><strong>Revisa tu correo</strong><span>Enviamos las instrucciones de recuperación.</span></div> : <>
-            <label>Correo institucional<Input name="email" type="email" placeholder="nombre@userena.cl" onChange={() => setError(false)} /></label>
-            {!recover && <label>Contraseña<Input name="password" type="password" placeholder="••••••••" onChange={() => setError(false)} /></label>}
-            {error && <p className="form-error">Completa ambos campos para iniciar sesión.</p>}
-            {!recover && <p className="privacy"><ShieldCheck /> Demo: usa cualquier correo y contraseña, por ejemplo demo@userena.cl / demo1234</p>}
-            <Button className="w-full" size="lg" type="submit">{recover ? "Enviar instrucciones" : "Iniciar sesión"}</Button>
-          </>}
-          <Button type="button" variant="link" onClick={() => { setRecover(!recover); setSent(false); }}>{recover ? "Volver al inicio de sesión" : "¿Olvidaste tu contraseña?"}</Button>
-          <p className="privacy"><ShieldCheck /> Tus datos están protegidos por las políticas institucionales.</p>
-        </form>
-      </section>
-    </main>
-  );
+  return <main className="login-shell">
+    <section className="login-brand"><BrandMark large /><div><p className="brand-kicker">Universidad de La Serena</p><h1>Gestión universitaria, en un solo lugar.</h1><p>Organiza eventos, coordina equipos y toma decisiones con información confiable.</p></div><p className="login-foot">Plataforma institucional · Acceso seguro</p></section>
+    <section className="login-panel"><form className="auth-form" onSubmit={submit}>
+      <div className="auth-icon"><ShieldCheck /></div><p className="eyebrow">PATOVER</p><h2>{recover ? "Recuperar contraseña" : "Inicia sesión en tu cuenta"}</h2>
+      <p className="supporting">{recover ? "Ingresa tu correo institucional y te enviaremos las instrucciones." : "Accede con tus credenciales institucionales."}</p>
+      {sent ? <div className="success-panel"><CheckCircle2 /><strong>Revisa tu correo</strong><span>Enviamos las instrucciones de recuperación.</span></div> : <>
+        <label>Correo institucional<Input name="email" type="email" placeholder="nombre@userena.cl" onChange={() => setError(false)} /></label>
+        {!recover && <label>Contraseña<div className="password-field"><Input name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={() => setError(false)} /><Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff /> : <Eye />}</Button></div></label>}
+        {error && <div className="inline-alert danger"><AlertTriangle /><span>Completa los campos obligatorios para continuar.</span></div>}
+        {!recover && <label className="check-row"><input type="checkbox" /> Recordarme</label>}
+        <Button className="w-full" size="lg" type="submit">{recover ? "Enviar instrucciones" : "Iniciar sesión"}</Button>
+        {!recover && <><div className="divider"><span>o continúa con</span></div><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Google simulado")} className="w-full">G&nbsp;&nbsp; Iniciar sesión con Google</Button><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Microsoft simulado")} className="w-full">▦&nbsp;&nbsp; Iniciar sesión con Microsoft</Button></>}
+      </>}
+      <Button type="button" variant="link" onClick={() => { setRecover(!recover); setSent(false); setError(false); }}>{recover ? "Volver al inicio de sesión" : "¿Olvidaste tu contraseña?"}</Button>
+      {!recover && <p className="demo-note">Demo: usa cualquier correo y contraseña. Ejemplo: demo@userena.cl / demo1234</p>}
+      {message && <p className="form-message">{message}</p>}
+    </form></section>
+  </main>;
 }
 
-function BrandMark({ large = false }: { large?: boolean }) {
-  return <div className={`brand-mark ${large ? "brand-mark-large" : ""}`}><span>P</span><strong>PATOVER</strong></div>;
-}
+function BrandMark({ large = false }: { large?: boolean }) { return <div className={`brand-mark ${large ? "brand-mark-large" : ""}`}><span>P</span><strong>PATOVER</strong></div>; }
 
 function Workspace({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>("dashboard");
   const [mobileNav, setMobileNav] = useState(false);
   const [notice, setNotice] = useState("");
+  const [orgs, setOrgs] = useState(initialOrganizations);
+  const [events, setEvents] = useState(initialEvents);
   const titles: Record<View, string> = { dashboard: "Resumen general", organizaciones: "Organizaciones", eventos: "Eventos", reportes: "Reportes e indicadores" };
   const navigate = (next: View) => { setView(next); setMobileNav(false); };
   const notify = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); };
-  return (
-    <div className="app-shell">
-      <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
-        <div className="sidebar-top"><BrandMark /><Button variant="ghost" size="icon" className="mobile-close" onClick={() => setMobileNav(false)} aria-label="Cerrar menú"><X /></Button></div>
-        <nav aria-label="Módulos principales">
-          <NavItem icon={<LayoutDashboard />} label="Resumen" active={view === "dashboard"} onClick={() => navigate("dashboard")} />
-          <p className="nav-label">Administración</p>
-          <NavItem icon={<Building2 />} label="Organizaciones" active={view === "organizaciones"} onClick={() => navigate("organizaciones")} />
-          <NavItem icon={<CalendarDays />} label="Eventos" active={view === "eventos"} onClick={() => navigate("eventos")} />
-          <p className="nav-label">Análisis</p>
-          <NavItem icon={<FileBarChart />} label="Reportes" active={view === "reportes"} onClick={() => navigate("reportes")} />
-        </nav>
-        <div className="sidebar-bottom"><NavItem icon={<CircleHelp />} label="Ayuda" /><NavItem icon={<LogOut />} label="Cerrar sesión" onClick={onLogout} /></div>
-      </aside>
-      <div className="main-area">
-        <header className="topbar">
-          <div className="topbar-title"><Button variant="ghost" size="icon" className="menu-button" onClick={() => setMobileNav(true)} aria-label="Abrir menú"><Menu /></Button><div><p>PATOVER / {titles[view]}</p><h1>{titles[view]}</h1></div></div>
-          <div className="user-area"><Button variant="ghost" size="icon" aria-label="Configuración"><Settings2 /></Button><div className="avatar">FC</div><div className="user-copy"><strong>Flavio Cortés</strong><span>Administrador global</span></div></div>
-        </header>
-        <main className="workspace">
-          {view === "dashboard" && <Dashboard navigate={navigate} />}
-          {view === "organizaciones" && <Organizations notify={notify} />}
-          {view === "eventos" && <Events notify={notify} />}
-          {view === "reportes" && <Reports notify={notify} />}
-        </main>
-      </div>
-      {notice && <div className="toast"><ShieldCheck />{notice}</div>}
-    </div>
-  );
-}
-
-function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) {
-  return <Button variant="ghost" className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>{icon}<span>{label}</span></Button>;
-}
-
-function Dashboard({ navigate }: { navigate: (view: View) => void }) {
-  return <div className="page-stack">
-    <div className="page-intro"><div><p className="eyebrow">Martes, 15 de septiembre</p><h2>Buenas tardes, Flavio</h2><p>Revisa la actividad reciente y los próximos hitos de la plataforma.</p></div><Button onClick={() => navigate("eventos")}><Plus /> Nuevo evento</Button></div>
-    <div className="metric-grid">
-      <Metric label="Eventos activos" value="12" note="3 este mes" icon={<CalendarDays />} />
-      <Metric label="Inscripciones" value="1.284" note="+18% este mes" icon={<Users />} />
-      <Metric label="Organizaciones" value="8" note="7 activas" icon={<Building2 />} />
-      <Metric label="Asistencia media" value="78%" note="Últimos 30 días" icon={<BarChart3 />} />
-    </div>
-    <div className="dashboard-grid">
-      <section className="panel"><div className="section-title"><div><p className="eyebrow">Próximamente</p><h3>Eventos en agenda</h3></div><Button variant="ghost" onClick={() => navigate("eventos")}>Ver todos <ChevronRight /></Button></div>{events.slice(0,3).map(event => <EventRow key={event.name} event={event} />)}</section>
-      <section className="panel"><div className="section-title"><div><p className="eyebrow">Actividad</p><h3>Inscripciones esta semana</h3></div></div><div className="mini-chart">{[35,48,44,68,58,82,74].map((h,i) => <div key={i}><span style={{ height: `${h}%` }} /><small>{["L","M","M","J","V","S","D"][i]}</small></div>)}</div><div className="chart-summary"><strong>326</strong><span>nuevas inscripciones</span></div></section>
-    </div>
+  return <div className="app-shell">
+    <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}><div className="sidebar-top"><BrandMark /><Button variant="ghost" size="icon" className="mobile-close" onClick={() => setMobileNav(false)} aria-label="Cerrar menú"><X /></Button></div><nav aria-label="Módulos principales">
+      <NavItem icon={<LayoutDashboard />} label="Resumen" active={view === "dashboard"} onClick={() => navigate("dashboard")} /><p className="nav-label">Administración</p>
+      <NavItem icon={<Building2 />} label="Organizaciones" active={view === "organizaciones"} onClick={() => navigate("organizaciones")} /><NavItem icon={<CalendarDays />} label="Eventos" active={view === "eventos"} onClick={() => navigate("eventos")} /><p className="nav-label">Análisis</p>
+      <NavItem icon={<FileBarChart />} label="Reportes" active={view === "reportes"} onClick={() => navigate("reportes")} />
+    </nav><div className="sidebar-bottom"><NavItem icon={<CircleHelp />} label="Ayuda" onClick={() => notify("Centro de ayuda disponible en la versión final")} /><NavItem icon={<LogOut />} label="Cerrar sesión" onClick={onLogout} /></div></aside>
+    {mobileNav && <div className="nav-scrim" onClick={() => setMobileNav(false)} />}
+    <div className="main-area"><header className="topbar"><div className="topbar-title"><Button variant="ghost" size="icon" className="menu-button" onClick={() => setMobileNav(true)} aria-label="Abrir menú"><Menu /></Button><div><p>PATOVER / {titles[view]}</p><h1>{titles[view]}</h1></div></div><div className="user-area"><Button variant="ghost" size="icon" aria-label="Configuración" onClick={() => notify("Preferencias abiertas en modo demostración")}><Settings2 /></Button><div className="avatar">FC</div><div className="user-copy"><strong>Flavio Cortés</strong><span>Administrador global</span></div></div></header>
+      <main className="workspace">{view === "dashboard" && <Dashboard navigate={navigate} events={events} orgCount={orgs.length} />}{view === "organizaciones" && <Organizations organizations={orgs} setOrganizations={setOrgs} notify={notify} />}{view === "eventos" && <Events events={events} setEvents={setEvents} organizations={orgs} notify={notify} />}{view === "reportes" && <Reports events={events} notify={notify} />}</main>
+    </div>{notice && <div className="toast"><CheckCircle2 />{notice}</div>}
   </div>;
 }
 
-function Metric({ label, value, note, icon }: { label: string; value: string; note: string; icon: React.ReactNode }) {
-  return <article className="metric"><div className="metric-head"><span>{label}</span><div className="metric-icon">{icon}</div></div><strong>{value}</strong><p>{note}</p></article>;
+function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) { return <Button variant="ghost" className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>{icon}<span>{label}</span></Button>; }
+
+function Dashboard({ navigate, events, orgCount }: { navigate: (view: View) => void; events: PatoverEvent[]; orgCount: number }) {
+  return <div className="page-stack"><div className="page-intro"><div><p className="eyebrow">Miércoles, 16 de septiembre</p><h2>Buenas tardes, Flavio</h2><p>Revisa la actividad reciente y los próximos hitos de la plataforma.</p></div><Button onClick={() => navigate("eventos")}><Plus /> Nuevo evento</Button></div>
+    <div className="metric-grid"><Metric label="Eventos activos" value={String(events.filter(e => !["Finalizado", "Archivado"].includes(e.status)).length)} note="Estado actualizado" icon={<CalendarDays />} /><Metric label="Inscripciones" value="1.284" note="+18% este mes" icon={<Users />} /><Metric label="Organizaciones" value={String(orgCount)} note="Unidades registradas" icon={<Building2 />} /><Metric label="Asistencia media" value="78%" note="Últimos 30 días" icon={<BarChart3 />} /></div>
+    <div className="dashboard-grid"><section className="panel"><div className="section-title"><div><p className="eyebrow">Próximamente</p><h3>Eventos en agenda</h3></div><Button variant="ghost" onClick={() => navigate("eventos")}>Ver todos <ChevronRight /></Button></div>{events.slice(0,3).map(event => <EventRow key={event.name} event={event} />)}</section><section className="panel"><div className="section-title"><div><p className="eyebrow">Actividad</p><h3>Inscripciones esta semana</h3></div></div><div className="mini-chart">{[35,48,44,68,58,82,74].map((h,i) => <div key={i}><span style={{ height: `${h}%` }} /><small>{["L","M","M","J","V","S","D"][i]}</small></div>)}</div><div className="chart-summary"><strong>326</strong><span>nuevas inscripciones</span></div></section></div>
+  </div>;
 }
 
-function Organizations({ notify }: { notify: (message: string) => void }) {
-  const [query, setQuery] = useState(""); const [editor, setEditor] = useState(false); const [selected, setSelected] = useState(0);
-  const filtered = organizations.filter(o => o.name.toLowerCase().includes(query.toLowerCase()));
-  return <div className="page-stack">
-    <div className="page-intro"><div><p className="eyebrow">MC-03</p><h2>Administración de organizaciones</h2><p>Gestiona las unidades organizadoras y sus responsables.</p></div><Button onClick={() => setEditor(true)}><Plus /> Nueva organización</Button></div>
-    <section className="panel table-panel"><div className="toolbar"><div className="search-field"><Search /><Input aria-label="Buscar organizaciones" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar por nombre o sigla" /></div><span className="result-count">{filtered.length} organizaciones</span></div>
-      <div className="table-wrap"><table><thead><tr><th>Organización</th><th>Responsable</th><th>Estado</th><th>Eventos</th><th></th></tr></thead><tbody>{filtered.map((org, index) => <tr key={org.initials} className={selected === index ? "selected-row" : ""} onClick={() => setSelected(index)}><td><div className="org-cell"><span className="org-avatar">{org.initials}</span><div><strong>{org.name}</strong><small>{org.initials}</small></div></div></td><td><strong>{org.contact}</strong><small>{org.email}</small></td><td><Status status={org.status} /></td><td>{org.events}</td><td><Button variant="ghost" size="icon" aria-label={`Acciones para ${org.name}`}><MoreHorizontal /></Button></td></tr>)}</tbody></table></div>
-      <div className="table-footer"><span>Mostrando {filtered.length} de {organizations.length}</span><div><Button variant="outline" size="icon" disabled><ChevronLeft /></Button><Button variant="outline" size="icon"><ChevronRight /></Button></div></div>
+function Metric({ label, value, note, icon }: { label: string; value: string; note: string; icon: React.ReactNode }) { return <article className="metric"><div className="metric-head"><span>{label}</span><div className="metric-icon">{icon}</div></div><strong>{value}</strong><p>{note}</p></article>; }
+
+function Organizations({ organizations, setOrganizations, notify }: { organizations: Organization[]; setOrganizations: React.Dispatch<React.SetStateAction<Organization[]>>; notify: (message: string) => void }) {
+  const [query, setQuery] = useState(""); const [selected, setSelected] = useState(0); const [editor, setEditor] = useState<"new" | "edit" | null>(null); const [usersOpen, setUsersOpen] = useState(false); const [deactivate, setDeactivate] = useState(false);
+  const filtered = organizations.filter(o => `${o.name} ${o.initials}`.toLowerCase().includes(query.toLowerCase()));
+  const current = organizations[selected];
+  const saveOrganization = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const next: Organization = { name: String(form.get("name")), initials: String(form.get("initials")).toUpperCase(), contact: String(form.get("contact")), email: String(form.get("email")), status: "Activa", events: editor === "edit" ? current?.events ?? 0 : 0 }; if (editor === "new") { setOrganizations(prev => [...prev, next]); setSelected(organizations.length); } else setOrganizations(prev => prev.map((item, i) => i === selected ? { ...next, status: item.status } : item)); setEditor(null); notify(editor === "new" ? "Organización creada correctamente" : "Organización actualizada correctamente"); };
+  return <div className="page-stack"><div className="page-intro"><div><p className="eyebrow">MC-03</p><h2>Administración de organizaciones</h2><p>Gestiona las unidades organizadoras y sus responsables.</p></div><Button onClick={() => setEditor("new")}><Plus /> Nueva organización</Button></div>
+    <section className="panel table-panel"><div className="toolbar"><div className="search-field"><Search /><Input aria-label="Buscar organizaciones" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar organizaciones..." /></div><span className="result-count">{filtered.length} organizaciones</span></div>
+      {filtered.length ? <div className="table-wrap"><table><thead><tr><th>Organización</th><th>Código</th><th>Responsable</th><th>Estado</th><th>Eventos</th><th></th></tr></thead><tbody>{filtered.map(org => { const realIndex = organizations.indexOf(org); return <tr key={org.initials} className={selected === realIndex ? "selected-row" : ""} onClick={() => setSelected(realIndex)}><td><div className="org-cell"><span className="org-avatar">{org.initials}</span><strong>{org.name}</strong></div></td><td>{org.initials}</td><td><strong>{org.contact}</strong><small>{org.email}</small></td><td><Status status={org.status} /></td><td>{org.events}</td><td><Button variant="ghost" size="icon" aria-label={`Seleccionar ${org.name}`} onClick={() => setSelected(realIndex)}><MoreHorizontal /></Button></td></tr>; })}</tbody></table></div> : <EmptyState title="No se encontraron organizaciones" text="Intenta con otros filtros o crea una nueva organización." />}
+      <div className="table-footer"><span>Mostrando {filtered.length} de {organizations.length}</span><div><Button variant="outline" size="icon" disabled><ChevronLeft /></Button><Button variant="outline" size="icon" disabled><ChevronRight /></Button></div></div>
     </section>
-    <section className="detail-strip"><div className="org-avatar large">{organizations[selected]?.initials}</div><div><p className="eyebrow">Organización seleccionada</p><h3>{organizations[selected]?.name}</h3><p>{organizations[selected]?.contact} · {organizations[selected]?.events} eventos vinculados</p></div><div className="detail-actions"><Button variant="outline" onClick={() => setEditor(true)}><Pencil /> Editar</Button><Button onClick={() => notify("Usuarios asociados actualizados")}>Asociar usuarios</Button></div></section>
-    {editor && <Modal title="Datos de la organización" onClose={() => setEditor(false)} onSave={() => { setEditor(false); notify("Organización guardada correctamente"); }}><div className="form-grid"><label>Nombre<Input defaultValue={organizations[selected]?.name} /></label><label>Sigla<Input defaultValue={organizations[selected]?.initials} /></label><label>Responsable<Input defaultValue={organizations[selected]?.contact} /></label><label>Correo institucional<Input type="email" defaultValue={organizations[selected]?.email} /></label><label className="span-2">Descripción<textarea defaultValue="Unidad organizadora de actividades y eventos institucionales." /></label></div></Modal>}
+    {current && <section className="detail-strip"><div className="org-avatar large">{current.initials}</div><div><p className="eyebrow">Organización seleccionada</p><h3>{current.name}</h3><p>{current.contact} · {current.events} eventos vinculados</p></div><div className="detail-actions"><Button variant="outline" onClick={() => setEditor("edit")}><Pencil /> Editar</Button><Button variant="outline" onClick={() => setDeactivate(true)}>{current.status === "Activa" ? <Archive /> : <CheckCircle2 />}{current.status === "Activa" ? "Desactivar" : "Activar"}</Button><Button onClick={() => setUsersOpen(true)}><UserPlus /> Asociar usuarios</Button></div></section>}
+    {editor && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">MC-03</p><h2>{editor === "new" ? "Nueva organización" : "Editar organización"}</h2></div><Button variant="ghost" size="icon" onClick={() => setEditor(null)} aria-label="Cerrar"><X /></Button></header><form onSubmit={saveOrganization}><div className="modal-body form-grid"><label className="span-2">Nombre de la organización *<Input name="name" required defaultValue={editor === "edit" ? current?.name : ""} /></label><label>Código *<Input name="initials" required maxLength={5} defaultValue={editor === "edit" ? current?.initials : ""} /></label><label>Estado<select disabled><option>Activa</option></select></label><label>Responsable *<Input name="contact" required defaultValue={editor === "edit" ? current?.contact : ""} /></label><label>Correo institucional *<Input name="email" type="email" required defaultValue={editor === "edit" ? current?.email : ""} /></label><label className="span-2">Descripción<textarea defaultValue="Unidad organizadora de actividades y eventos institucionales." /></label></div><footer><Button type="button" variant="outline" onClick={() => setEditor(null)}>Cancelar</Button><Button type="submit">Guardar cambios</Button></footer></form></section></div>}
+    {usersOpen && <Modal title="Usuarios de la organización" onClose={() => setUsersOpen(false)} onSave={() => { setUsersOpen(false); notify("Usuarios asociados actualizados"); }} saveLabel="Guardar asociaciones"><div className="user-association"><div className="org-summary"><span className="org-avatar large">{current?.initials}</span><div><strong>{current?.name}</strong><p>{current?.email}</p></div></div>{[["María Rodríguez","Administrador"],["Juan Pérez","Editor"],["Carla Gómez","Lector"]].map(([name, role], i) => <label className="association-row" key={name}><input type="checkbox" defaultChecked={i < 2} /><span><strong>{name}</strong><small>{name.toLowerCase().replace(" ", ".")}@uls.edu</small></span><Status status={role} /></label>)}</div></Modal>}
+    {deactivate && <ConfirmModal title={current?.status === "Activa" ? "¿Desactivar organización?" : "¿Activar organización?"} warning={Boolean(current && current.events > 10 && current.status === "Activa")} onClose={() => setDeactivate(false)} onConfirm={() => { if (!current || (current.events > 10 && current.status === "Activa")) return; setOrganizations(prev => prev.map((o,i) => i === selected ? { ...o, status: o.status === "Activa" ? "Inactiva" : "Activa" } : o)); setDeactivate(false); notify("Estado de la organización actualizado"); }} />}
   </div>;
 }
 
-function Events({ notify }: { notify: (message: string) => void }) {
-  const [query, setQuery] = useState(""); const [status, setStatus] = useState("Todos"); const [wizard, setWizard] = useState(false); const [step, setStep] = useState(1);
-  const filtered = events.filter(event => event.name.toLowerCase().includes(query.toLowerCase()) && (status === "Todos" || event.status === status));
-  return <div className="page-stack">
-    <div className="page-intro"><div><p className="eyebrow">MC-04</p><h2>Gestión de eventos</h2><p>Administra el ciclo de vida, configuración y publicación.</p></div><Button onClick={() => { setStep(1); setWizard(true); }}><Plus /> Crear evento</Button></div>
-    <div className="summary-band"><div><strong>18</strong><span>Total</span></div><div><strong>8</strong><span>Publicados</span></div><div><strong>4</strong><span>En configuración</span></div><div><strong>3</strong><span>Borradores</span></div></div>
-    <section className="panel table-panel"><div className="toolbar"><div className="search-field"><Search /><Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar eventos" /></div><select value={status} onChange={e => setStatus(e.target.value)} aria-label="Filtrar por estado"><option>Todos</option><option>Publicado</option><option>Configurado</option><option>Borrador</option><option>Finalizado</option></select></div>
-      <div className="event-list">{filtered.map(event => <EventCard key={event.name} event={event} notify={notify} />)}</div></section>
-    {wizard && <Modal wide title="Crear nuevo evento" onClose={() => setWizard(false)} onSave={() => step < 3 ? setStep(step + 1) : (setWizard(false), notify("Evento creado como borrador"))} saveLabel={step < 3 ? "Continuar" : "Crear evento"}>
-      <div className="steps">{["Información", "Configuración", "Revisión"].map((label,i) => <div className={step >= i+1 ? "step active" : "step"} key={label}><span>{i+1}</span><small>{label}</small></div>)}</div>
-      {step === 1 && <div className="form-grid"><label className="span-2">Nombre del evento<Input placeholder="Ej. Feria de Innovación 2026" /></label><label>Organización<select><option>Facultad de Ingeniería</option><option>Dirección de Vinculación</option></select></label><label>Código<Input placeholder="EVT-2026-001" /></label><label>Fecha de inicio<Input type="date" /></label><label>Fecha de término<Input type="date" /></label><label className="span-2">Descripción<textarea placeholder="Describe el propósito del evento" /></label></div>}
-      {step === 2 && <div className="option-list"><ToggleOption title="Inscripción habilitada" text="Permite que participantes se inscriban al evento." active /><ToggleOption title="Acreditación de participantes" text="Activa el proceso de acreditación presencial." active /><ToggleOption title="Registro de asistencia" text="Registra asistencia general y por actividad." /><ToggleOption title="Visibilidad pública" text="Publica la información general en el portal." active /></div>}
-      {step === 3 && <div className="review-box"><ShieldCheck /><h3>Todo listo para comenzar</h3><p>El evento se guardará en estado borrador. Podrás completar su configuración y publicarlo después.</p><dl><div><dt>Organización</dt><dd>Facultad de Ingeniería</dd></div><div><dt>Estado inicial</dt><dd>Borrador</dd></div></dl></div>}
-      {step > 1 && <Button variant="ghost" onClick={() => setStep(step-1)}><ChevronLeft /> Volver</Button>}
-    </Modal>}
+function Events({ events, setEvents, organizations, notify }: { events: PatoverEvent[]; setEvents: React.Dispatch<React.SetStateAction<PatoverEvent[]>>; organizations: Organization[]; notify: (message: string) => void }) {
+  const [query, setQuery] = useState(""); const [status, setStatus] = useState("Todos"); const [wizard, setWizard] = useState(false); const [step, setStep] = useState(1); const [selected, setSelected] = useState<number | null>(null); const [action, setAction] = useState<string | null>(null);
+  const filtered = events.filter(event => event.name.toLowerCase().includes(query.toLowerCase()) && (status === "Todos" || event.status === status)); const current = selected === null ? undefined : events[selected];
+  const transition = (next: EventStatus) => { if (selected === null) return; setEvents(prev => prev.map((event,i) => i === selected ? { ...event, status: next } : event)); setAction(null); notify(`Evento actualizado a ${next.toLowerCase()}`); };
+  const createEvent = (form: HTMLFormElement) => { const data = new FormData(form); const next: PatoverEvent = { name: String(data.get("name") || "Nuevo evento ULS"), org: String(data.get("org") || organizations[0]?.name || "Universidad de La Serena"), date: "15 nov 2026", place: String(data.get("place") || "Por definir"), registered: 0, capacity: Number(data.get("capacity")) || 300, status: "Borrador" }; setEvents(prev => [...prev, next]); setWizard(false); notify("Evento creado como borrador"); };
+  return <div className="page-stack"><div className="page-intro"><div><p className="eyebrow">MC-04</p><h2>Gestión de eventos</h2><p>Administra el ciclo de vida, configuración y publicación.</p></div><Button onClick={() => { setStep(1); setWizard(true); }}><Plus /> Crear evento</Button></div>
+    <div className="summary-band"><div><strong>{events.length}</strong><span>Total</span></div><div><strong>{events.filter(e => e.status === "Publicado").length}</strong><span>Publicados</span></div><div><strong>{events.filter(e => e.status === "Configurado").length}</strong><span>Configurados</span></div><div><strong>{events.filter(e => e.status === "Borrador").length}</strong><span>Borradores</span></div></div>
+    <section className="panel table-panel"><div className="toolbar"><div className="search-field"><Search /><Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar eventos..." /></div><select value={status} onChange={e => setStatus(e.target.value)} aria-label="Filtrar por estado"><option>Todos</option><option>Publicado</option><option>Configurado</option><option>Borrador</option><option>Finalizado</option><option>Archivado</option></select></div><div className="event-list">{filtered.length ? filtered.map(event => <EventCard key={event.name} event={event} onView={() => setSelected(events.indexOf(event))} onEdit={() => { setSelected(events.indexOf(event)); setAction("config"); }} />) : <EmptyState title="No se encontraron eventos" text="Ajusta la búsqueda o cambia el filtro de estado." />}</div></section>
+    {wizard && <EventWizard step={step} setStep={setStep} organizations={organizations} onClose={() => setWizard(false)} onCreate={createEvent} />}
+    {current && selected !== null && <Modal wide title={current.name} onClose={() => { setSelected(null); setAction(null); }} onSave={() => { setSelected(null); setAction(null); }} saveLabel="Cerrar"><div className="event-detail"><div className="event-detail-head"><Status status={current.status} /><p>{current.org} · {current.date} · {current.place}</p></div><div className="detail-tabs"><button className={action !== "config" ? "active" : ""} onClick={() => setAction(null)}>Información</button><button className={action === "config" ? "active" : ""} onClick={() => setAction("config")}>Configuración</button></div>{action === "config" ? <div className="option-list"><ToggleOption title="Período de inscripción" text="Desde 01/09/2026 hasta 23/09/2026." active /><ToggleOption title={`Capacidad máxima: ${current.capacity}`} text="Limita nuevas inscripciones al completar el aforo." active /><ToggleOption title="Datos requeridos" text="Nombre, identificación, correo y teléfono." active /><ToggleOption title="Acreditación" text="Requiere validación presencial." active /><ToggleOption title="Registro de asistencia" text="Evento y actividades asociadas." active /><ToggleOption title="Visibilidad pública" text="Disponible en el portal institucional." active={current.status === "Publicado"} /></div> : <><div className="detail-facts"><div><span>Código</span><strong>EVT-2026-{String(selected + 1).padStart(3,"0")}</strong></div><div><span>Inscritos</span><strong>{current.registered} / {current.capacity}</strong></div><div><span>Organización</span><strong>{current.org}</strong></div><div><span>Ubicación</span><strong>{current.place}</strong></div></div><div className="quick-actions"><Button variant="outline" onClick={() => setAction("config")}><Settings2 /> Configurar</Button>{current.status === "Borrador" && <Button onClick={() => transition("Configurado")}><CheckCircle2 /> Completar configuración</Button>}{current.status === "Configurado" && <Button onClick={() => transition("Publicado")}><Eye /> Publicar</Button>}{current.status === "Publicado" && <Button variant="outline" onClick={() => transition("Configurado")}><EyeOff /> Despublicar</Button>}{current.status !== "Finalizado" && current.status !== "Archivado" && <Button variant="outline" onClick={() => transition("Finalizado")}><CheckCircle2 /> Finalizar</Button>}{current.status === "Finalizado" && <Button variant="outline" onClick={() => transition("Archivado")}><Archive /> Archivar</Button>}<Button variant="outline" onClick={() => { setEvents(prev => [...prev, { ...current, name: `${current.name} (copia)`, status: "Borrador", registered: 0 }]); notify("Evento duplicado como borrador"); }}><Copy /> Duplicar</Button></div></>}</div></Modal>}
   </div>;
 }
 
-function EventCard({ event, notify }: { event: typeof events[number]; notify: (message: string) => void }) {
-  return <article className="event-card"><div className="event-date"><strong>{event.date.split(" ")[0]}</strong><span>{event.date.split(" ")[1]}</span></div><div className="event-main"><div><Status status={event.status} /><h3>{event.name}</h3><p>{event.org} · {event.place}</p></div><div className="capacity"><div><span>Inscritos</span><strong>{event.registered} / {event.capacity}</strong></div><div className="progress"><span style={{ width: `${event.registered/event.capacity*100}%` }} /></div></div></div><div className="event-actions"><Button variant="outline" size="icon" aria-label={`Ver ${event.name}`} onClick={() => notify(`Vista previa: ${event.name}`)}><Eye /></Button><Button variant="outline" size="icon" aria-label={`Editar ${event.name}`} onClick={() => notify("Edición habilitada para el evento")}><Pencil /></Button></div></article>;
+function EventWizard({ step, setStep, organizations, onClose, onCreate }: { step: number; setStep: (step:number) => void; organizations: Organization[]; onClose: () => void; onCreate: (form: HTMLFormElement) => void }) {
+  return <div className="modal-backdrop"><section className="modal modal-wide" role="dialog" aria-modal="true"><header><div><p className="eyebrow">MC-04 · RF-025</p><h2>Crear nuevo evento</h2></div><Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar"><X /></Button></header><form onSubmit={e => { e.preventDefault(); if (step < 3) setStep(step + 1); else onCreate(e.currentTarget); }}><div className="modal-body"><div className="steps">{["Información", "Configuración", "Publicación"].map((label,i) => <div className={step >= i+1 ? "step active" : "step"} key={label}><span>{i+1}</span><small>{label}</small></div>)}</div>{step === 1 && <div className="form-grid"><label className="span-2">Nombre del evento *<Input name="name" required placeholder="Ej. Feria de Innovación 2026" /></label><label>Organización *<select name="org">{organizations.filter(o => o.status === "Activa").map(o => <option key={o.initials}>{o.name}</option>)}</select></label><label>Código *<Input required placeholder="EVT-2026-001" /></label><label>Fecha de inicio *<Input required type="date" /></label><label>Fecha de término *<Input required type="date" /></label><label className="span-2">Ubicación<Input name="place" placeholder="Campus o salón" /></label><label className="span-2">Descripción<textarea required placeholder="Describe el propósito del evento" /></label></div>}{step === 2 && <div className="option-list"><label className="config-input">Capacidad máxima<Input name="capacity" type="number" defaultValue="300" min="1" /></label><ToggleOption title="Inscripción habilitada" text="Permite que participantes se inscriban." active /><ToggleOption title="Acreditación" text="Activa la acreditación presencial." active /><ToggleOption title="Registro de asistencia" text="Registra asistencia general y por actividad." /><ToggleOption title="Visibilidad pública" text="Publica la ficha en el portal." /></div>}{step === 3 && <div className="review-box"><ShieldCheck /><h3>Información completa</h3><p>El evento se guardará como borrador para que puedas revisarlo antes de publicarlo.</p><dl><div><dt>Estado inicial</dt><dd>Borrador</dd></div><div><dt>Próximo paso</dt><dd>Revisar y publicar</dd></div></dl></div>}{step > 1 && <Button type="button" variant="ghost" onClick={() => setStep(step-1)}><ChevronLeft /> Volver</Button>}</div><footer><Button type="button" variant="outline" onClick={onClose}>Cancelar</Button><Button type="submit">{step < 3 ? "Siguiente" : "Crear evento"}<ChevronRight /></Button></footer></form></section></div>;
 }
 
-function Reports({ notify }: { notify: (message: string) => void }) {
-  const [period, setPeriod] = useState("Este mes");
-  const [event, setEvent] = useState("Todos los eventos");
-  const factor = period === "Este mes" ? 1 : period === "Últimos 3 meses" ? 2.4 : 4.8;
-  const values = useMemo(() => [42,68,51,82,73,91,78].map(v => Math.min(98, v * (event === "Todos los eventos" ? 1 : .82))), [event]);
-  return <div className="page-stack">
-    <div className="page-intro"><div><p className="eyebrow">MC-10</p><h2>Reportes e indicadores</h2><p>Analiza resultados dentro de tu ámbito autorizado.</p></div><Button onClick={() => notify("Reporte exportado correctamente")}><Download /> Exportar reporte</Button></div>
-    <section className="filters"><label>Período<select value={period} onChange={e => setPeriod(e.target.value)}><option>Este mes</option><option>Últimos 3 meses</option><option>Este año</option></select></label><label>Evento<select value={event} onChange={e => setEvent(e.target.value)}><option>Todos los eventos</option>{events.map(e => <option key={e.name}>{e.name}</option>)}</select></label><Button variant="outline"><Settings2 /> Más filtros</Button><span>Actualizado hace 5 min</span></section>
-    <div className="metric-grid report-metrics"><Metric label="Inscripciones" value={Math.round(1284*factor).toLocaleString("es-CL")} note="+18% vs período anterior" icon={<Users />} /><Metric label="Acreditados" value={Math.round(962*factor).toLocaleString("es-CL")} note="74,9% de inscritos" icon={<ShieldCheck />} /><Metric label="Asistencias" value={Math.round(874*factor).toLocaleString("es-CL")} note="90,8% de acreditados" icon={<CalendarDays />} /><Metric label="Eventos realizados" value={String(Math.round(6*factor))} note="2 próximos" icon={<FileBarChart />} /></div>
-    <div className="report-grid"><section className="panel"><div className="section-title"><div><p className="eyebrow">Tendencia semanal</p><h3>Inscripciones y asistencia</h3></div><span className="legend"><i /> Inscripciones <i /> Asistencia</span></div><div className="large-chart">{values.map((v,i) => <div key={i}><div className="bars"><span style={{height:`${v}%`}}/><span style={{height:`${v*.76}%`}}/></div><small>Sem {i+1}</small></div>)}</div></section><section className="panel"><div className="section-title"><div><p className="eyebrow">Conversión</p><h3>Embudo de participación</h3></div></div><div className="funnel"><div><strong>1.284</strong><span>Inscritos</span></div><div><strong>962</strong><span>Acreditados</span></div><div><strong>874</strong><span>Asistentes</span></div></div><p className="formula">Indicador calculado sobre registros válidos y activos.</p></section></div>
-    <section className="panel table-panel"><div className="section-title"><div><p className="eyebrow">Desglose</p><h3>Rendimiento por evento</h3></div></div><div className="table-wrap"><table><thead><tr><th>Evento</th><th>Inscritos</th><th>Acreditados</th><th>Asistencia</th><th>Ocupación</th></tr></thead><tbody>{events.map(e => <tr key={e.name}><td><strong>{e.name}</strong><small>{e.org}</small></td><td>{e.registered}</td><td>{Math.round(e.registered*.78)}</td><td>{Math.round(e.registered*.68)}</td><td><div className="progress compact"><span style={{width:`${e.registered/e.capacity*100}%`}}/></div>{Math.round(e.registered/e.capacity*100)}%</td></tr>)}</tbody></table></div></section>
+function EventCard({ event, onView, onEdit }: { event: PatoverEvent; onView: () => void; onEdit: () => void }) { return <article className="event-card"><div className="event-date"><strong>{event.date.split(" ")[0]}</strong><span>{event.date.split(" ")[1]}</span></div><div className="event-main"><div><Status status={event.status} /><h3>{event.name}</h3><p>{event.org} · {event.place}</p></div><div className="capacity"><div><span>Inscritos</span><strong>{event.registered} / {event.capacity}</strong></div><div className="progress"><span style={{ width: `${event.registered/event.capacity*100}%` }} /></div></div></div><div className="event-actions"><Button variant="outline" size="icon" aria-label={`Ver ${event.name}`} onClick={onView}><Eye /></Button><Button variant="outline" size="icon" aria-label={`Configurar ${event.name}`} onClick={onEdit}><Settings2 /></Button></div></article>; }
+
+function Reports({ events, notify }: { events: PatoverEvent[]; notify: (message: string) => void }) {
+  const [period, setPeriod] = useState("Este mes"); const [event, setEvent] = useState("Todos los eventos"); const [advanced, setAdvanced] = useState(false); const factor = period === "Este mes" ? 1 : period === "Últimos 3 meses" ? 2.4 : 4.8; const values = useMemo(() => [42,68,51,82,73,91,78].map(v => Math.min(98, v * (event === "Todos los eventos" ? 1 : .82))), [event]);
+  const exportReport = () => { const rows = ["Evento,Organización,Inscritos,Acreditados,Asistentes", ...events.map(e => `"${e.name}","${e.org}",${e.registered},${Math.round(e.registered*.78)},${Math.round(e.registered*.68)}`)]; const url = URL.createObjectURL(new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "reporte-patover.csv"; anchor.click(); URL.revokeObjectURL(url); notify("Reporte CSV exportado correctamente"); };
+  return <div className="page-stack"><div className="page-intro"><div><p className="eyebrow">MC-10</p><h2>Reportes y dashboards</h2><p>Analiza inscripciones, acreditación y asistencia dentro de tu ámbito autorizado.</p></div><Button onClick={exportReport}><Download /> Exportar reporte</Button></div>
+    <section className="filters"><label>Período<select value={period} onChange={e => setPeriod(e.target.value)}><option>Este mes</option><option>Últimos 3 meses</option><option>Este año</option></select></label><label>Evento<select value={event} onChange={e => setEvent(e.target.value)}><option>Todos los eventos</option>{events.map(e => <option key={e.name}>{e.name}</option>)}</select></label><Button variant="outline" onClick={() => setAdvanced(!advanced)}><Settings2 /> {advanced ? "Ocultar filtros" : "Más filtros"}</Button><span>Actualizado hace 5 min</span></section>
+    {advanced && <section className="advanced-filters"><label>Organización<select><option>Todas</option><option>Facultad de Ingeniería</option><option>Dirección de Vinculación</option></select></label><label>Estado<select><option>Todos</option><option>Publicado</option><option>Finalizado</option></select></label><label className="check-row"><input type="checkbox" /> Participantes</label><label className="check-row"><input type="checkbox" /> Acreditación</label><label className="check-row"><input type="checkbox" /> Asistencia</label><Button variant="outline" onClick={() => { setPeriod("Este mes"); setEvent("Todos los eventos"); }}>Limpiar filtros</Button></section>}
+    <div className="metric-grid report-metrics"><Metric label="Inscripciones" value={Math.round(1284*factor).toLocaleString("es-CL")} note="+18% vs período anterior" icon={<Users />} /><Metric label="Acreditados" value={Math.round(962*factor).toLocaleString("es-CL")} note="74,9% de inscritos" icon={<ShieldCheck />} /><Metric label="Asistencias" value={Math.round(874*factor).toLocaleString("es-CL")} note="90,8% de acreditados" icon={<CalendarDays />} /><Metric label="Tasa de asistencia" value="78%" note="Sobre acreditados" icon={<FileBarChart />} /></div>
+    <div className="report-grid"><section className="panel"><div className="section-title"><div><p className="eyebrow">Participación por actividad</p><h3>Inscripciones y asistencia</h3></div><span className="legend"><i /> Inscripciones <i /> Asistencia</span></div><div className="large-chart">{values.map((v,i) => <div key={i}><div className="bars"><span style={{height:`${v}%`}}/><span style={{height:`${v*.76}%`}}/></div><small>Sem {i+1}</small></div>)}</div></section><section className="panel"><div className="section-title"><div><p className="eyebrow">Conversión</p><h3>Estado de participación</h3></div></div><div className="funnel"><div><strong>1.284</strong><span>Inscritos</span></div><div><strong>962</strong><span>Acreditados</span></div><div><strong>874</strong><span>Asistentes</span></div></div><p className="formula">Indicador calculado sobre registros válidos y activos.</p></section></div>
+    <section className="panel table-panel"><div className="section-title report-table-title"><div><p className="eyebrow">Reporte de eventos</p><h3>Detalle operativo</h3></div><Button variant="outline" onClick={exportReport}><Download /> Exportar</Button></div><div className="table-wrap"><table><thead><tr><th>Evento</th><th>Inscritos</th><th>Acreditados</th><th>Asistencia</th><th>Ocupación</th></tr></thead><tbody>{events.map(e => <tr key={e.name}><td><strong>{e.name}</strong><small>{e.org}</small></td><td>{e.registered}</td><td>{Math.round(e.registered*.78)}</td><td>{Math.round(e.registered*.68)}</td><td><div className="progress compact"><span style={{width:`${e.registered/e.capacity*100}%`}}/></div>{Math.round(e.registered/e.capacity*100)}%</td></tr>)}</tbody></table></div></section>
   </div>;
 }
 
-function ToggleOption({ title, text, active = false }: { title: string; text: string; active?: boolean }) { const [on,setOn] = useState(active); return <div className="toggle-option"><div><strong>{title}</strong><p>{text}</p></div><Button variant="ghost" className={`switch ${on ? "on" : ""}`} onClick={() => setOn(!on)} aria-label={`${on ? "Desactivar" : "Activar"} ${title}`}><span /></Button></div>; }
+function ToggleOption({ title, text, active = false }: { title: string; text: string; active?: boolean }) { const [on,setOn] = useState(active); return <div className="toggle-option"><div><strong>{title}</strong><p>{text}</p></div><Button type="button" variant="ghost" className={`switch ${on ? "on" : ""}`} onClick={() => setOn(!on)} aria-label={`${on ? "Desactivar" : "Activar"} ${title}`}><span /></Button></div>; }
 function Status({ status }: { status: string }) { return <span className={`status status-${status.toLowerCase()}`}>{status}</span>; }
-function EventRow({ event }: { event: typeof events[number] }) { return <div className="event-row"><div className="event-date small"><strong>{event.date.split(" ")[0]}</strong><span>{event.date.split(" ")[1]}</span></div><div><strong>{event.name}</strong><span>{event.org}</span></div><Status status={event.status} /></div>; }
-function Modal({ title, children, onClose, onSave, saveLabel="Guardar cambios", wide=false }: { title:string; children:React.ReactNode; onClose:()=>void; onSave:()=>void; saveLabel?:string; wide?:boolean }) { return <div className="modal-backdrop" role="presentation" onMouseDown={e => { if(e.currentTarget === e.target) onClose(); }}><section className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true"><header><div><p className="eyebrow">PATOVER</p><h2>{title}</h2></div><Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar"><X /></Button></header><div className="modal-body">{children}</div><footer><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={onSave}>{saveLabel}<ChevronRight /></Button></footer></section></div>; }
+function EventRow({ event }: { event: PatoverEvent }) { return <div className="event-row"><div className="event-date small"><strong>{event.date.split(" ")[0]}</strong><span>{event.date.split(" ")[1]}</span></div><div><strong>{event.name}</strong><span>{event.org}</span></div><Status status={event.status} /></div>; }
+function EmptyState({ title, text }: { title:string; text:string }) { return <div className="empty-state"><div><Search /></div><strong>{title}</strong><p>{text}</p></div>; }
+function Modal({ title, children, onClose, onSave, saveLabel="Guardar cambios", wide=false }: { title:string; children:React.ReactNode; onClose:()=>void; onSave:()=>void; saveLabel?:string; wide?:boolean }) { return <div className="modal-backdrop" role="presentation" onMouseDown={e => { if(e.currentTarget === e.target) onClose(); }}><section className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true"><header><div><p className="eyebrow">PATOVER</p><h2>{title}</h2></div><Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar"><X /></Button></header><div className="modal-body">{children}</div><footer><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={onSave}>{saveLabel}</Button></footer></section></div>; }
+function ConfirmModal({ title, warning, onClose, onConfirm }: { title:string; warning:boolean; onClose:()=>void; onConfirm:()=>void }) { return <div className="modal-backdrop"><section className="modal confirm-modal" role="dialog" aria-modal="true"><div className={`confirm-icon ${warning ? "danger" : ""}`}>{warning ? <AlertTriangle /> : <Archive />}</div><h2>{warning ? "No es posible desactivar" : title}</h2><p>{warning ? "La organización tiene eventos activos asociados. Debes finalizarlos o reasignarlos antes de desactivarla." : "Esta acción cambiará el estado de la organización. Puedes revertirla más adelante."}</p><div className="confirm-actions"><Button variant="outline" onClick={onClose}>{warning ? "Entendido" : "Cancelar"}</Button>{!warning && <Button onClick={onConfirm}>Confirmar</Button>}</div></section></div>; }
