@@ -89,13 +89,13 @@ function Login({ account, onLogin }: { account: Account; onLogin: () => void }) 
 
 function BrandMark({ large = false }: { large?: boolean }) { return <div className={`brand-mark ${large ? "brand-mark-large" : ""}`}><span>P</span><strong>PATOVER</strong></div>; }
 
-function Workspace({ onLogout }: { onLogout: () => void }) {
+function Workspace({ account, setAccount, onLogout }: { account: Account; setAccount: (a: Account) => void; onLogout: () => void }) {
   const [view, setView] = useState<View>("dashboard");
   const [mobileNav, setMobileNav] = useState(false);
   const [notice, setNotice] = useState("");
   const [orgs, setOrgs] = useState(initialOrganizations);
   const [events, setEvents] = useState(initialEvents);
-  const titles: Record<View, string> = { dashboard: "Resumen general", organizaciones: "Organizaciones", eventos: "Eventos", reportes: "Reportes e indicadores" };
+  const titles: Record<View, string> = { dashboard: "Resumen general", organizaciones: "Organizaciones", eventos: "Eventos", reportes: "Reportes e indicadores", perfil: "Mi perfil" };
   const navigate = (next: View) => { setView(next); setMobileNav(false); };
   const notify = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); };
   return <div className="app-shell">
