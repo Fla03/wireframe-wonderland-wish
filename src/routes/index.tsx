@@ -43,11 +43,12 @@ const initialEvents: PatoverEvent[] = [
 
 function Index() {
   const [signedIn, setSignedIn] = useState(false);
-  if (!signedIn) return <Login onLogin={() => setSignedIn(true)} />;
-  return <Workspace onLogout={() => setSignedIn(false)} />;
+  const [account, setAccount] = useState<Account>({ name: "Flavio Cortés", initials: "FC", role: "Administrador global", email: "demo@userena.cl", password: "demo1234" });
+  if (!signedIn) return <Login account={account} onLogin={() => setSignedIn(true)} />;
+  return <Workspace account={account} setAccount={setAccount} onLogout={() => setSignedIn(false)} />;
 }
 
-function Login({ onLogin }: { onLogin: () => void }) {
+function Login({ account, onLogin }: { account: Account; onLogin: () => void }) {
   const [recover, setRecover] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(false);
