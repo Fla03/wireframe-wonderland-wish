@@ -54,11 +54,17 @@ function Login({ account, onLogin }: { account: Account; onLogin: () => void }) 
   const [error, setError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [errorText, setErrorText] = useState("");
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    if (!form.get("email") || (!recover && !form.get("password"))) { setError(true); return; }
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    if (!email || (!recover && !password)) { setError(true); setErrorText("Completa los campos obligatorios para continuar."); return; }
     if (recover) { setSent(true); return; }
+    if (email.toLowerCase() !== account.email.toLowerCase() || password !== account.password) {
+      setError(true); setErrorText("Correo o contraseña incorrectos."); return;
+    }
     onLogin();
   };
   return <main className="login-shell">
