@@ -21,7 +21,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type View = "dashboard" | "organizaciones" | "eventos" | "reportes";
+type View = "dashboard" | "organizaciones" | "eventos" | "reportes" | "perfil";
+type Account = { name: string; initials: string; role: string; email: string; password: string };
 type EventStatus = "Publicado" | "Configurado" | "Borrador" | "Finalizado" | "Archivado";
 type Organization = { name: string; initials: string; contact: string; email: string; status: "Activa" | "Inactiva"; events: number };
 type PatoverEvent = { name: string; org: string; date: string; place: string; registered: number; capacity: number; status: EventStatus };
@@ -42,21 +43,28 @@ const initialEvents: PatoverEvent[] = [
 
 function Index() {
   const [signedIn, setSignedIn] = useState(false);
-  if (!signedIn) return <Login onLogin={() => setSignedIn(true)} />;
-  return <Workspace onLogout={() => setSignedIn(false)} />;
+  const [account, setAccount] = useState<Account>({ name: "Flavio Cortés", initials: "FC", role: "Administrador global", email: "demo@userena.cl", password: "demo1234" });
+  if (!signedIn) return <Login account={account} onLogin={() => setSignedIn(true)} />;
+  return <Workspace account={account} setAccount={setAccount} onLogout={() => setSignedIn(false)} />;
 }
 
-function Login({ onLogin }: { onLogin: () => void }) {
+function Login({ account, onLogin }: { account: Account; onLogin: () => void }) {
   const [recover, setRecover] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [errorText, setErrorText] = useState("");
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    if (!form.get("email") || (!recover && !form.get("password"))) { setError(true); return; }
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    if (!email || (!recover && !password)) { setError(true); setErrorText("Completa los campos obligatorios para continuar."); return; }
     if (recover) { setSent(true); return; }
+    if (email.toLowerCase() !== account.email.toLowerCase() || password !== account.password) {
+      setError(true); setErrorText("Correo o contraseña incorrectos."); return;
+    }
     onLogin();
   };
   return <main className="login-shell">
@@ -67,13 +75,13 @@ function Login({ onLogin }: { onLogin: () => void }) {
       {sent ? <div className="success-panel"><CheckCircle2 /><strong>Revisa tu correo</strong><span>Enviamos las instrucciones de recuperación.</span></div> : <>
         <label>Correo institucional<Input name="email" type="email" placeholder="nombre@userena.cl" onChange={() => setError(false)} /></label>
         {!recover && <label>Contraseña<div className="password-field"><Input name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={() => setError(false)} /><Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff /> : <Eye />}</Button></div></label>}
-        {error && <div className="inline-alert danger"><AlertTriangle /><span>Completa los campos obligatorios para continuar.</span></div>}
+        {error && <div className="inline-alert danger"><AlertTriangle /><span>{errorText}</span></div>}
         {!recover && <label className="check-row"><input type="checkbox" /> Recordarme</label>}
         <Button className="w-full" size="lg" type="submit">{recover ? "Enviar instrucciones" : "Iniciar sesión"}</Button>
         {!recover && <><div className="divider"><span>o continúa con</span></div><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Google simulado")} className="w-full">G&nbsp;&nbsp; Iniciar sesión con Google</Button><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Microsoft simulado")} className="w-full">▦&nbsp;&nbsp; Iniciar sesión con Microsoft</Button></>}
       </>}
       <Button type="button" variant="link" onClick={() => { setRecover(!recover); setSent(false); setError(false); }}>{recover ? "Volver al inicio de sesión" : "¿Olvidaste tu contraseña?"}</Button>
-      {!recover && <p className="demo-note">Demo: usa cualquier correo y contraseña. Ejemplo: demo@userena.cl / demo1234</p>}
+      {!recover && <p className="demo-note">Acceso actual: {account.email} / {account.password}. Puedes cambiarlo en Mi perfil.</p>}
       {message && <p className="form-message">{message}</p>}
     </form></section>
   </main>;
@@ -81,32 +89,33 @@ function Login({ onLogin }: { onLogin: () => void }) {
 
 function BrandMark({ large = false }: { large?: boolean }) { return <div className={`brand-mark ${large ? "brand-mark-large" : ""}`}><span>P</span><strong>PATOVER</strong></div>; }
 
-function Workspace({ onLogout }: { onLogout: () => void }) {
+function Workspace({ account, setAccount, onLogout }: { account: Account; setAccount: (a: Account) => void; onLogout: () => void }) {
   const [view, setView] = useState<View>("dashboard");
   const [mobileNav, setMobileNav] = useState(false);
   const [notice, setNotice] = useState("");
   const [orgs, setOrgs] = useState(initialOrganizations);
   const [events, setEvents] = useState(initialEvents);
-  const titles: Record<View, string> = { dashboard: "Resumen general", organizaciones: "Organizaciones", eventos: "Eventos", reportes: "Reportes e indicadores" };
+  const titles: Record<View, string> = { dashboard: "Resumen general", organizaciones: "Organizaciones", eventos: "Eventos", reportes: "Reportes e indicadores", perfil: "Mi perfil" };
   const navigate = (next: View) => { setView(next); setMobileNav(false); };
   const notify = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(""), 2600); };
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}><div className="sidebar-top"><BrandMark /><Button variant="ghost" size="icon" className="mobile-close" onClick={() => setMobileNav(false)} aria-label="Cerrar menú"><X /></Button></div><nav aria-label="Módulos principales">
       <NavItem icon={<LayoutDashboard />} label="Resumen" active={view === "dashboard"} onClick={() => navigate("dashboard")} /><p className="nav-label">Administración</p>
       <NavItem icon={<Building2 />} label="Organizaciones" active={view === "organizaciones"} onClick={() => navigate("organizaciones")} /><NavItem icon={<CalendarDays />} label="Eventos" active={view === "eventos"} onClick={() => navigate("eventos")} /><p className="nav-label">Análisis</p>
-      <NavItem icon={<FileBarChart />} label="Reportes" active={view === "reportes"} onClick={() => navigate("reportes")} />
+      <NavItem icon={<FileBarChart />} label="Reportes" active={view === "reportes"} onClick={() => navigate("reportes")} /><p className="nav-label">Cuenta</p>
+      <NavItem icon={<ShieldCheck />} label="Mi perfil" active={view === "perfil"} onClick={() => navigate("perfil")} />
     </nav><div className="sidebar-bottom"><NavItem icon={<CircleHelp />} label="Ayuda" onClick={() => notify("Centro de ayuda disponible en la versión final")} /><NavItem icon={<LogOut />} label="Cerrar sesión" onClick={onLogout} /></div></aside>
     {mobileNav && <div className="nav-scrim" onClick={() => setMobileNav(false)} />}
-    <div className="main-area"><header className="topbar"><div className="topbar-title"><Button variant="ghost" size="icon" className="menu-button" onClick={() => setMobileNav(true)} aria-label="Abrir menú"><Menu /></Button><div><p>PATOVER / {titles[view]}</p><h1>{titles[view]}</h1></div></div><div className="user-area"><Button variant="ghost" size="icon" aria-label="Configuración" onClick={() => notify("Preferencias abiertas en modo demostración")}><Settings2 /></Button><div className="avatar">FC</div><div className="user-copy"><strong>Flavio Cortés</strong><span>Administrador global</span></div></div></header>
-      <main className="workspace">{view === "dashboard" && <Dashboard navigate={navigate} events={events} orgCount={orgs.length} />}{view === "organizaciones" && <Organizations organizations={orgs} setOrganizations={setOrgs} notify={notify} />}{view === "eventos" && <Events events={events} setEvents={setEvents} organizations={orgs} notify={notify} />}{view === "reportes" && <Reports events={events} notify={notify} />}</main>
+    <div className="main-area"><header className="topbar"><div className="topbar-title"><Button variant="ghost" size="icon" className="menu-button" onClick={() => setMobileNav(true)} aria-label="Abrir menú"><Menu /></Button><div><p>PATOVER / {titles[view]}</p><h1>{titles[view]}</h1></div></div><div className="user-area"><Button variant="ghost" size="icon" aria-label="Configuración" onClick={() => navigate("perfil")}><Settings2 /></Button><button type="button" className="user-chip" onClick={() => navigate("perfil")} aria-label="Abrir mi perfil"><div className="avatar">{account.initials}</div><div className="user-copy"><strong>{account.name}</strong><span>{account.role}</span></div></button></div></header>
+      <main className="workspace">{view === "dashboard" && <Dashboard navigate={navigate} events={events} orgCount={orgs.length} name={account.name.split(" ")[0]} />}{view === "organizaciones" && <Organizations organizations={orgs} setOrganizations={setOrgs} notify={notify} />}{view === "eventos" && <Events events={events} setEvents={setEvents} organizations={orgs} notify={notify} />}{view === "reportes" && <Reports events={events} notify={notify} />}{view === "perfil" && <Profile account={account} setAccount={setAccount} notify={notify} />}</main>
     </div>{notice && <div className="toast"><CheckCircle2 />{notice}</div>}
   </div>;
 }
 
 function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active?: boolean; onClick?: () => void }) { return <Button variant="ghost" className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>{icon}<span>{label}</span></Button>; }
 
-function Dashboard({ navigate, events, orgCount }: { navigate: (view: View) => void; events: PatoverEvent[]; orgCount: number }) {
-  return <div className="page-stack"><div className="page-intro"><div><p className="eyebrow">Miércoles, 16 de septiembre</p><h2>Buenas tardes, Flavio</h2><p>Revisa la actividad reciente y los próximos hitos de la plataforma.</p></div><Button onClick={() => navigate("eventos")}><Plus /> Nuevo evento</Button></div>
+function Dashboard({ navigate, events, orgCount, name }: { navigate: (view: View) => void; events: PatoverEvent[]; orgCount: number; name: string }) {
+  return <div className="page-stack"><div className="page-intro"><div><p className="eyebrow">Miércoles, 16 de septiembre</p><h2>Buenas tardes, {name}</h2><p>Revisa la actividad reciente y los próximos hitos de la plataforma.</p></div><Button onClick={() => navigate("eventos")}><Plus /> Nuevo evento</Button></div>
     <div className="metric-grid"><Metric label="Eventos activos" value={String(events.filter(e => !["Finalizado", "Archivado"].includes(e.status)).length)} note="Estado actualizado" icon={<CalendarDays />} /><Metric label="Inscripciones" value="1.284" note="+18% este mes" icon={<Users />} /><Metric label="Organizaciones" value={String(orgCount)} note="Unidades registradas" icon={<Building2 />} /><Metric label="Asistencia media" value="78%" note="Últimos 30 días" icon={<BarChart3 />} /></div>
     <div className="dashboard-grid"><section className="panel"><div className="section-title"><div><p className="eyebrow">Próximamente</p><h3>Eventos en agenda</h3></div><Button variant="ghost" onClick={() => navigate("eventos")}>Ver todos <ChevronRight /></Button></div>{events.slice(0,3).map(event => <EventRow key={event.name} event={event} />)}</section><section className="panel"><div className="section-title"><div><p className="eyebrow">Actividad</p><h3>Inscripciones esta semana</h3></div></div><div className="mini-chart">{[35,48,44,68,58,82,74].map((h,i) => <div key={i}><span style={{ height: `${h}%` }} /><small>{["L","M","M","J","V","S","D"][i]}</small></div>)}</div><div className="chart-summary"><strong>326</strong><span>nuevas inscripciones</span></div></section></div>
   </div>;
@@ -168,3 +177,57 @@ function EventRow({ event }: { event: PatoverEvent }) { return <div className="e
 function EmptyState({ title, text }: { title:string; text:string }) { return <div className="empty-state"><div><Search /></div><strong>{title}</strong><p>{text}</p></div>; }
 function Modal({ title, children, onClose, onSave, saveLabel="Guardar cambios", wide=false }: { title:string; children:React.ReactNode; onClose:()=>void; onSave:()=>void; saveLabel?:string; wide?:boolean }) { return <div className="modal-backdrop" role="presentation" onMouseDown={e => { if(e.currentTarget === e.target) onClose(); }}><section className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true"><header><div><p className="eyebrow">PATOVER</p><h2>{title}</h2></div><Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar"><X /></Button></header><div className="modal-body">{children}</div><footer><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={onSave}>{saveLabel}</Button></footer></section></div>; }
 function ConfirmModal({ title, warning, onClose, onConfirm }: { title:string; warning:boolean; onClose:()=>void; onConfirm:()=>void }) { return <div className="modal-backdrop"><section className="modal confirm-modal" role="dialog" aria-modal="true"><div className={`confirm-icon ${warning ? "danger" : ""}`}>{warning ? <AlertTriangle /> : <Archive />}</div><h2>{warning ? "No es posible desactivar" : title}</h2><p>{warning ? "La organización tiene eventos activos asociados. Debes finalizarlos o reasignarlos antes de desactivarla." : "Esta acción cambiará el estado de la organización. Puedes revertirla más adelante."}</p><div className="confirm-actions"><Button variant="outline" onClick={onClose}>{warning ? "Entendido" : "Cancelar"}</Button>{!warning && <Button onClick={onConfirm}>Confirmar</Button>}</div></section></div>; }
+function Profile({ account, setAccount, notify }: { account: Account; setAccount: (a: Account) => void; notify: (m: string) => void }) {
+  const [name, setName] = useState(account.name);
+  const [email, setEmail] = useState(account.email);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+  const [dataError, setDataError] = useState("");
+  const [passError, setPassError] = useState("");
+  const initialsOf = (value: string) => value.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() ?? "").join("") || "US";
+
+  const saveData = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!name.trim()) { setDataError("Escribe tu nombre completo."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setDataError("Ingresa un correo válido."); return; }
+    setDataError("");
+    setAccount({ ...account, name: name.trim(), email: email.trim().toLowerCase(), initials: initialsOf(name) });
+    notify("Datos de cuenta actualizados");
+  };
+
+  const savePassword = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (current !== account.password) { setPassError("La contraseña actual no coincide."); return; }
+    if (next.length < 8) { setPassError("La nueva contraseña debe tener al menos 8 caracteres."); return; }
+    if (next !== confirm) { setPassError("La confirmación no coincide con la nueva contraseña."); return; }
+    setPassError("");
+    setAccount({ ...account, password: next });
+    setCurrent(""); setNext(""); setConfirm("");
+    notify("Contraseña actualizada");
+  };
+
+  return <div className="page-stack">
+    <div className="page-intro"><div><p className="eyebrow">Cuenta</p><h2>Mi perfil</h2><p>Actualiza tus datos de acceso. Las nuevas credenciales se usarán al volver a iniciar sesión.</p></div></div>
+    <section className="panel profile-head"><div className="avatar large">{account.initials}</div><div><strong>{account.name}</strong><p>{account.role}</p><p>{account.email}</p></div></section>
+    <div className="profile-grid">
+      <section className="panel"><form className="profile-form" onSubmit={saveData}>
+        <div className="section-title"><div><p className="eyebrow">Datos personales</p><h3>Nombre y correo</h3></div></div>
+        <label>Nombre completo<Input value={name} onChange={e => { setName(e.target.value); setDataError(""); }} /></label>
+        <label>Correo de acceso<Input type="email" value={email} onChange={e => { setEmail(e.target.value); setDataError(""); }} /></label>
+        {dataError && <div className="inline-alert danger"><AlertTriangle /><span>{dataError}</span></div>}
+        <div className="profile-actions"><Button type="submit">Guardar cambios</Button><Button type="button" variant="outline" onClick={() => { setName(account.name); setEmail(account.email); setDataError(""); }}>Restablecer</Button></div>
+      </form></section>
+      <section className="panel"><form className="profile-form" onSubmit={savePassword}>
+        <div className="section-title"><div><p className="eyebrow">Seguridad</p><h3>Cambiar contraseña</h3></div><Button type="button" variant="ghost" size="icon" onClick={() => setShow(!show)} aria-label={show ? "Ocultar contraseñas" : "Mostrar contraseñas"}>{show ? <EyeOff /> : <Eye />}</Button></div>
+        <label>Contraseña actual<Input type={show ? "text" : "password"} value={current} onChange={e => { setCurrent(e.target.value); setPassError(""); }} /></label>
+        <label>Nueva contraseña<Input type={show ? "text" : "password"} value={next} onChange={e => { setNext(e.target.value); setPassError(""); }} /></label>
+        <label>Confirmar nueva contraseña<Input type={show ? "text" : "password"} value={confirm} onChange={e => { setConfirm(e.target.value); setPassError(""); }} /></label>
+        {passError && <div className="inline-alert danger"><AlertTriangle /><span>{passError}</span></div>}
+        <p className="demo-note">Usa al menos 8 caracteres.</p>
+        <div className="profile-actions"><Button type="submit">Actualizar contraseña</Button></div>
+      </form></section>
+    </div>
+  </div>;
+}
