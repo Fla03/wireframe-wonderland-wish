@@ -177,3 +177,57 @@ function EventRow({ event }: { event: PatoverEvent }) { return <div className="e
 function EmptyState({ title, text }: { title:string; text:string }) { return <div className="empty-state"><div><Search /></div><strong>{title}</strong><p>{text}</p></div>; }
 function Modal({ title, children, onClose, onSave, saveLabel="Guardar cambios", wide=false }: { title:string; children:React.ReactNode; onClose:()=>void; onSave:()=>void; saveLabel?:string; wide?:boolean }) { return <div className="modal-backdrop" role="presentation" onMouseDown={e => { if(e.currentTarget === e.target) onClose(); }}><section className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true"><header><div><p className="eyebrow">PATOVER</p><h2>{title}</h2></div><Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar"><X /></Button></header><div className="modal-body">{children}</div><footer><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={onSave}>{saveLabel}</Button></footer></section></div>; }
 function ConfirmModal({ title, warning, onClose, onConfirm }: { title:string; warning:boolean; onClose:()=>void; onConfirm:()=>void }) { return <div className="modal-backdrop"><section className="modal confirm-modal" role="dialog" aria-modal="true"><div className={`confirm-icon ${warning ? "danger" : ""}`}>{warning ? <AlertTriangle /> : <Archive />}</div><h2>{warning ? "No es posible desactivar" : title}</h2><p>{warning ? "La organización tiene eventos activos asociados. Debes finalizarlos o reasignarlos antes de desactivarla." : "Esta acción cambiará el estado de la organización. Puedes revertirla más adelante."}</p><div className="confirm-actions"><Button variant="outline" onClick={onClose}>{warning ? "Entendido" : "Cancelar"}</Button>{!warning && <Button onClick={onConfirm}>Confirmar</Button>}</div></section></div>; }
+function Profile({ account, setAccount, notify }: { account: Account; setAccount: (a: Account) => void; notify: (m: string) => void }) {
+  const [name, setName] = useState(account.name);
+  const [email, setEmail] = useState(account.email);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+  const [dataError, setDataError] = useState("");
+  const [passError, setPassError] = useState("");
+  const initialsOf = (value: string) => value.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() ?? "").join("") || "US";
+
+  const saveData = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!name.trim()) { setDataError("Escribe tu nombre completo."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setDataError("Ingresa un correo válido."); return; }
+    setDataError("");
+    setAccount({ ...account, name: name.trim(), email: email.trim().toLowerCase(), initials: initialsOf(name) });
+    notify("Datos de cuenta actualizados");
+  };
+
+  const savePassword = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (current !== account.password) { setPassError("La contraseña actual no coincide."); return; }
+    if (next.length < 8) { setPassError("La nueva contraseña debe tener al menos 8 caracteres."); return; }
+    if (next !== confirm) { setPassError("La confirmación no coincide con la nueva contraseña."); return; }
+    setPassError("");
+    setAccount({ ...account, password: next });
+    setCurrent(""); setNext(""); setConfirm("");
+    notify("Contraseña actualizada");
+  };
+
+  return <div className="page-stack">
+    <div className="page-intro"><div><p className="eyebrow">Cuenta</p><h2>Mi perfil</h2><p>Actualiza tus datos de acceso. Las nuevas credenciales se usarán al volver a iniciar sesión.</p></div></div>
+    <section className="panel profile-head"><div className="avatar large">{account.initials}</div><div><strong>{account.name}</strong><p>{account.role}</p><p>{account.email}</p></div></section>
+    <div className="profile-grid">
+      <section className="panel"><form className="profile-form" onSubmit={saveData}>
+        <div className="section-title"><div><p className="eyebrow">Datos personales</p><h3>Nombre y correo</h3></div></div>
+        <label>Nombre completo<Input value={name} onChange={e => { setName(e.target.value); setDataError(""); }} /></label>
+        <label>Correo de acceso<Input type="email" value={email} onChange={e => { setEmail(e.target.value); setDataError(""); }} /></label>
+        {dataError && <div className="inline-alert danger"><AlertTriangle /><span>{dataError}</span></div>}
+        <div className="profile-actions"><Button type="submit">Guardar cambios</Button><Button type="button" variant="outline" onClick={() => { setName(account.name); setEmail(account.email); setDataError(""); }}>Restablecer</Button></div>
+      </form></section>
+      <section className="panel"><form className="profile-form" onSubmit={savePassword}>
+        <div className="section-title"><div><p className="eyebrow">Seguridad</p><h3>Cambiar contraseña</h3></div><Button type="button" variant="ghost" size="icon" onClick={() => setShow(!show)} aria-label={show ? "Ocultar contraseñas" : "Mostrar contraseñas"}>{show ? <EyeOff /> : <Eye />}</Button></div>
+        <label>Contraseña actual<Input type={show ? "text" : "password"} value={current} onChange={e => { setCurrent(e.target.value); setPassError(""); }} /></label>
+        <label>Nueva contraseña<Input type={show ? "text" : "password"} value={next} onChange={e => { setNext(e.target.value); setPassError(""); }} /></label>
+        <label>Confirmar nueva contraseña<Input type={show ? "text" : "password"} value={confirm} onChange={e => { setConfirm(e.target.value); setPassError(""); }} /></label>
+        {passError && <div className="inline-alert danger"><AlertTriangle /><span>{passError}</span></div>}
+        <p className="demo-note">Usa al menos 8 caracteres.</p>
+        <div className="profile-actions"><Button type="submit">Actualizar contraseña</Button></div>
+      </form></section>
+    </div>
+  </div>;
+}
