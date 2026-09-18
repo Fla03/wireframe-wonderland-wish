@@ -21,7 +21,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type View = "dashboard" | "organizaciones" | "eventos" | "reportes";
+type View = "dashboard" | "organizaciones" | "eventos" | "reportes" | "perfil";
+type Account = { name: string; initials: string; role: string; email: string; password: string };
 type EventStatus = "Publicado" | "Configurado" | "Borrador" | "Finalizado" | "Archivado";
 type Organization = { name: string; initials: string; contact: string; email: string; status: "Activa" | "Inactiva"; events: number };
 type PatoverEvent = { name: string; org: string; date: string; place: string; registered: number; capacity: number; status: EventStatus };
