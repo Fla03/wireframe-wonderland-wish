@@ -75,7 +75,7 @@ function Login({ account, onLogin }: { account: Account; onLogin: () => void }) 
       {sent ? <div className="success-panel"><CheckCircle2 /><strong>Revisa tu correo</strong><span>Enviamos las instrucciones de recuperación.</span></div> : <>
         <label>Correo institucional<Input name="email" type="email" placeholder="nombre@userena.cl" onChange={() => setError(false)} /></label>
         {!recover && <label>Contraseña<div className="password-field"><Input name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={() => setError(false)} /><Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>{showPassword ? <EyeOff /> : <Eye />}</Button></div></label>}
-        {error && <div className="inline-alert danger"><AlertTriangle /><span>Completa los campos obligatorios para continuar.</span></div>}
+        {error && <div className="inline-alert danger"><AlertTriangle /><span>{errorText}</span></div>}
         {!recover && <label className="check-row"><input type="checkbox" /> Recordarme</label>}
         <Button className="w-full" size="lg" type="submit">{recover ? "Enviar instrucciones" : "Iniciar sesión"}</Button>
         {!recover && <><div className="divider"><span>o continúa con</span></div><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Google simulado")} className="w-full">G&nbsp;&nbsp; Iniciar sesión con Google</Button><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Microsoft simulado")} className="w-full">▦&nbsp;&nbsp; Iniciar sesión con Microsoft</Button></>}
