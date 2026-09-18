@@ -81,7 +81,7 @@ function Login({ account, onLogin }: { account: Account; onLogin: () => void }) 
         {!recover && <><div className="divider"><span>o continúa con</span></div><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Google simulado")} className="w-full">G&nbsp;&nbsp; Iniciar sesión con Google</Button><Button type="button" variant="outline" onClick={() => setMessage("Acceso con Microsoft simulado")} className="w-full">▦&nbsp;&nbsp; Iniciar sesión con Microsoft</Button></>}
       </>}
       <Button type="button" variant="link" onClick={() => { setRecover(!recover); setSent(false); setError(false); }}>{recover ? "Volver al inicio de sesión" : "¿Olvidaste tu contraseña?"}</Button>
-      {!recover && <p className="demo-note">Demo: usa cualquier correo y contraseña. Ejemplo: demo@userena.cl / demo1234</p>}
+      {!recover && <p className="demo-note">Acceso actual: {account.email} / {account.password}. Puedes cambiarlo en Mi perfil.</p>}
       {message && <p className="form-message">{message}</p>}
     </form></section>
   </main>;
