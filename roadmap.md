@@ -5,5 +5,5 @@
 - [x] Implementar organizaciones
 - [x] Implementar eventos y configuración
 - [x] Implementar reportes y filtros
-- [ ] Completar interacciones finales según wireframes
+- [x] Completar interacciones finales según wireframes
 - [ ] Verificar visualmente escritorio y móvil
