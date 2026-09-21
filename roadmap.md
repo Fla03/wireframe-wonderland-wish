@@ -6,4 +6,4 @@
 - [x] Implementar eventos y configuración
 - [x] Implementar reportes y filtros
 - [x] Completar interacciones finales según wireframes
-- [ ] Verificar visualmente escritorio y móvil
+- [ ] Verificar visualmente escritorio, tablet y móvil
